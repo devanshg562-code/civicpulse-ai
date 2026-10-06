@@ -1,0 +1,16 @@
+{
+  "name": "civicpulse-ai",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "cd backend && py -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:web": "cd client && npm run dev -- --host 0.0.0.0",
+    "build": "cd client && npm run build",
+    "start": "cd backend && py -m uvicorn app.main:app --host 127.0.0.1 --port 8000",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}

@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: civicpulse-ai-api
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATABASE_URL
+        fromDatabase:
+          name: civicpulse-ai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://civicpulse-ai-web.onrender.com
+      - key: UPLOAD_DIR
+        value: /tmp/civicpulse-uploads
+
+  - type: static
+    name: civicpulse-ai-web
+    region: singapore
+    plan: free
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://civicpulse-ai-api.onrender.com/api
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: civicpulse-ai-db
+    databaseName: civicpulse
+    user: civicpulse
+    region: singapore
+    plan: free
