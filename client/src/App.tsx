@@ -927,7 +927,7 @@ function OfficerDashboard({ user }: { user: any }) {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [predictions, setPredictions] = useState<any[]>([]);
   useEffect(() => {
-    Promise.all([api.get('/officer/complaints'), api.get('/alerts'), api.get('/officer/predictions')]).then(([complaintsRes, alertsRes, predictionsRes]) => {
+    Promise.all([api.get('/complaints'), api.get('/alerts'), api.get('/predictions')]).then(([complaintsRes, alertsRes, predictionsRes]) => {
       setComplaints(complaintsRes.data.complaints);
       setAlerts(alertsRes.data.alerts);
       setPredictions(predictionsRes.data.predictions);
@@ -985,12 +985,12 @@ function OfficerDashboard({ user }: { user: any }) {
 function OfficerComplaintsPage({ user }: { user: any }) {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [error, setError] = useState('');
-  const fetchComplaints = () => api.get('/officer/complaints').then((r) => setComplaints(r.data.complaints)).catch((e) => setError(getApiErrorMessage(e)));
+  const fetchComplaints = () => api.get('/complaints').then((r) => setComplaints(r.data.complaints)).catch((e) => setError(getApiErrorMessage(e)));
   useEffect(() => { fetchComplaints(); }, []);
 
   const handleStatusUpdate = async (id: string, status: string) => {
     try {
-      await api.put(`/officer/complaints/${id}/status`, { status: status.toUpperCase().replaceAll(' ', '_'), comment: `Updated by ${user.name}` });
+      await api.put(`/complaints/${id}/status`, { status: status.toUpperCase().replaceAll(' ', '_'), comment: `Updated by ${user.name}` });
       setError('');
       fetchComplaints();
     } catch (e) {
@@ -1097,7 +1097,7 @@ function AdminDashboard({ user }: { user: any }) {
           api.get('/admin/users'),
           api.get('/admin/alerts'),
           api.get('/admin/predictions'),
-          api.get('/admin/complaints'),
+          api.get('/complaints'),
         ]);
         if (!active) return;
         setData({
@@ -1206,7 +1206,25 @@ function AdminDashboard({ user }: { user: any }) {
 function AdminComplaintsPage({ user }: { user: any }) {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [error, setError] = useState('');
-  useEffect(() => { api.get('/admin/complaints').then((r) => setComplaints(r.data.complaints)).catch((e) => setError(getApiErrorMessage(e))); }, []);
+  
+  const fetchComplaints = () => {
+    api.get('/complaints')
+      .then((r) => setComplaints(r.data.complaints))
+      .catch((e) => setError(getApiErrorMessage(e)));
+  };
+
+  useEffect(() => { fetchComplaints(); }, []);
+
+  const handleStatusUpdate = async (id: string, status: string) => {
+    try {
+      await api.put(`/complaints/${id}/status`, { status, comment: `Updated by Admin (${user.name})` });
+      setError('');
+      fetchComplaints();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    }
+  };
+
   return (
     <DashboardShell user={user} onLogout={() => window.location.href = '/'} navItems={[
       { label: 'Dashboard', href: '/admin/dashboard' },
@@ -1226,7 +1244,7 @@ function AdminComplaintsPage({ user }: { user: any }) {
         {!error && complaints.length === 0 && <p className="mb-4 text-slate-400">No complaints have been submitted yet.</p>}
         <div className="table-scroll">
           <table className="min-w-full text-left text-sm text-slate-300">
-            <thead className="text-slate-400"><tr><th className="p-3">ID</th><th className="p-3">Title</th><th className="p-3">Category</th><th className="p-3">Priority</th><th className="p-3">Status</th></tr></thead>
+            <thead className="text-slate-400"><tr><th className="p-3">ID</th><th className="p-3">Title</th><th className="p-3">Category</th><th className="p-3">Priority</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead>
             <tbody>
               {complaints.map((complaint) => (
                 <tr key={complaint.id} className="border-t border-slate-700">
@@ -1235,6 +1253,10 @@ function AdminComplaintsPage({ user }: { user: any }) {
                   <td className="p-3">{complaint.category}</td>
                   <td className="p-3 text-cyan-300">{complaint.priority}</td>
                   <td className="p-3">{complaint.status}</td>
+                  <td className="p-3 flex gap-2">
+                    <button onClick={() => handleStatusUpdate(complaint.id, 'Approved')} className="rounded-lg bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950">Approve</button>
+                    <button onClick={() => handleStatusUpdate(complaint.id, 'Resolved')} className="rounded-lg bg-cyan-500 px-3 py-1 text-xs font-semibold text-slate-950">Resolve</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
