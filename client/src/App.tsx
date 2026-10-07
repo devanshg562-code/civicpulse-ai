@@ -94,6 +94,7 @@ function App() {
         <Route path="/officer/clusters" element={<ProtectedRoute allowedRoles={['officer']} user={user} token={token}><OfficerClustersPage user={user} /></ProtectedRoute>} />
         <Route path="/officer/alerts" element={<ProtectedRoute allowedRoles={['officer']} user={user} token={token}><OfficerAlertsPage user={user} /></ProtectedRoute>} />
 
+        <Route path="/admin/login" element={<AdminLoginPage onLogin={handleLogin} user={user} />} />
         <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']} user={user} token={token}><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/admin/complaints" element={<ProtectedRoute allowedRoles={['admin']} user={user} token={token}><AdminComplaintsPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']} user={user} token={token}><AdminUsersPage user={user} /></ProtectedRoute>} />
@@ -114,6 +115,9 @@ function App() {
 
 function ProtectedRoute({ user, token, allowedRoles, children }: any) {
   if (!token || !user) {
+    if (allowedRoles.includes('admin')) {
+      return <Navigate to="/admin/login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
@@ -175,7 +179,7 @@ function LandingPage({ user }: { user: any }) {
           <div className="flex items-center gap-3">
             <Link to="/login" className="rounded-full border border-slate-600 px-4 py-2 text-sm hover:border-slate-400">Login</Link>
             <Link to="/register" className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Register</Link>
-            <Link to="/admin/dashboard" className="rounded-full border border-violet-400 px-4 py-2 text-sm text-violet-200">Admin Login</Link>
+            <Link to="/admin/login" className="rounded-full border border-violet-400 px-4 py-2 text-sm text-violet-200">Admin Login</Link>
           </div>
         </nav>
       </header>
@@ -349,6 +353,73 @@ function LoginPage({ onLogin, user }: { onLogin: (token: string, user: Record<st
         </div>
 
         <div className="mt-6 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-cyan-100">Create a citizen account to get started. Administrator and officer accounts must be provisioned by an administrator.</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminLoginPage({ onLogin, user }: { onLogin: (token: string, user: Record<string, unknown>) => void; user: any }) {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const path = `/${user.role}/dashboard`;
+      navigate(path, { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const credentials = new URLSearchParams({
+        username: form.email,
+        password: form.password,
+      });
+      const response = await api.post('/auth/login', credentials, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      const { token, user: nextUser } = response.data;
+      if (nextUser.role !== 'admin') {
+        setError('Access denied: You are not an administrator.');
+        setLoading(false);
+        return;
+      }
+      onLogin(token, nextUser);
+      navigate(`/admin/dashboard`);
+    } catch (err: any) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+      <div className="card-surface w-full max-w-md rounded-3xl p-8 border-violet-500/20">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-lg font-bold text-white">A</div>
+          <h1 className="text-3xl font-bold text-white">Admin Portal</h1>
+          <p className="mt-2 text-slate-400">Secure access for administrators</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm text-slate-300">Admin Email</label>
+            <input type="email" autoComplete="email" required className="w-full rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-white outline-none ring-0 focus:border-violet-500" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-slate-300">Password</label>
+            <input type="password" autoComplete="current-password" required className="w-full rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-white outline-none ring-0 focus:border-violet-500" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          {error && <div className="rounded-xl border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-200">{error}</div>}
+          <button type="submit" disabled={loading} className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-3 font-semibold text-white disabled:opacity-60">{loading ? 'Authenticating…' : 'Admin Login'}</button>
+        </form>
+        <div className="mt-6 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 text-xs text-violet-200">Only authorized administrators can access this portal. Citizen and officer accounts are not permitted.</div>
       </div>
     </div>
   );
