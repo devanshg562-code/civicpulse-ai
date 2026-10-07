@@ -6,7 +6,8 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
@@ -22,13 +23,12 @@ services:
       - key: UPLOAD_DIR
         value: /tmp/civicpulse-uploads
 
-  - type: static
+  - type: web
     name: civicpulse-ai-web
-    region: singapore
-    plan: free
+    runtime: static
     rootDir: client
     buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE_URL
         value: https://civicpulse-ai-api.onrender.com/api
